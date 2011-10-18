@@ -17,8 +17,9 @@ module OmniAuth
       # @option options [String] :scope ('publish_feed,status_update') comma-separated extended permissions such as `publish_feed` and `status_update`
       def initialize(app, client_id=nil, client_secret=nil, options={}, &block)
         client_options = {
-          :authorize_url => 'http://graph.renren.com/oauth/authorize',
-          :token_url => 'http://graph.renren.com/oauth/token',
+          :authorize_url => 'https://graph.renren.com/oauth/authorize',
+          :token_url => 'https://graph.renren.com/oauth/token',
+          :site => "https://graph.renren.com/"
         }
         super(app, :renren, client_id, client_secret, client_options, options, &block)
       end
@@ -36,7 +37,11 @@ module OmniAuth
       end
 
       def user_data
-        @data ||= MultiJson.decode(Net::HTTP.post_form(URI.parse('http://api.renren.com/restserver.do'), signed_params).body)[0]
+        @data ||= {
+          'uid' => @access_token['user']['id'],
+          'name' => @access_token['user']['name'],
+          'profile_url' => @access_token['user']['avatar'].first['url']
+        }
       end
 
       def signed_params
@@ -53,11 +58,11 @@ module OmniAuth
       end
 
       def session_key
-        @session_key ||= MultiJson.decode(@access_token.get('/renren_api/session_key'))
+        @session_key ||= MultiJson.decode(@access_token.get("/renren_api/session_key?oauth_token=#{@access_token.token}").body)
       end
 
       def request_phase
-        options[:scope] ||= 'publish_feed'
+        # options[:scope] ||= 'publish_feed'
         super
       end
 
@@ -80,8 +85,8 @@ module OmniAuth
 
       def user_info
         {
-          'name' => user_data['name'],
-          'image' => user_data['tinyurl'],
+          'username' => user_data['name'],
+          'image' => user_data['profile_url']
         }
       end
     end
